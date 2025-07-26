@@ -357,6 +357,8 @@ function education_helper_get_content($section, $key, $default = '') {
 
 // Content Manager Admin Page
 function education_helper_content_manager_page() {
+    // Enqueue WordPress media uploader
+    wp_enqueue_media();
     ?>
     <div class="wrap">
         <h1><span class="dashicons dashicons-edit-page"></span> Content Manager</h1>
@@ -400,6 +402,12 @@ function education_helper_content_manager_page() {
         .error-message { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin: 10px 0; }
         .save-button { background: #0073aa; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
         .save-button:hover { background: #005a87; }
+        
+        /* Image Upload Styles */
+        .image-upload-container { border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fafafa; }
+        .image-preview img { display: block; margin-bottom: 10px; }
+        .upload-image-button, .remove-image-button { margin-right: 10px; }
+        .upload-image-button .dashicons, .remove-image-button .dashicons { font-size: 16px; width: 16px; height: 16px; }
     </style>
     
     <script>
@@ -414,6 +422,115 @@ function education_helper_content_manager_page() {
             
             $('.tab-content').removeClass('active');
             $(target).addClass('active');
+        });
+        
+        // WordPress Media Uploader
+        var mediaUploader;
+        
+        $('.upload-image-button').click(function(e) {
+            e.preventDefault();
+            var button = $(this);
+            var target = button.data('target');
+            var container = button.closest('.image-upload-container');
+            var urlInput = container.find('input[name="' + target + '"]');
+            var preview = container.find('.image-preview');
+            
+            // If the media frame already exists, reopen it
+            if (mediaUploader) {
+                mediaUploader.open();
+                return;
+            }
+            
+            // Create a new media frame
+            mediaUploader = wp.media({
+                title: 'Choose Image',
+                button: {
+                    text: 'Choose Image'
+                },
+                multiple: false
+            });
+            
+            // When an image is selected in the media frame
+            mediaUploader.on('select', function() {
+                var attachment = mediaUploader.state().get('selection').first().toJSON();
+                var imageUrl = attachment.url;
+                
+                // Update the input field
+                urlInput.val(imageUrl);
+                
+                // Update the preview
+                preview.html(
+                    '<img src="' + imageUrl + '" alt="Image Preview" style="max-width: 300px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">' +
+                    '<p><small>Current image</small></p>'
+                );
+                
+                // Show remove button if not already present
+                if (!container.find('.remove-image-button').is(':visible')) {
+                    container.find('.remove-image-button').show();
+                }
+                
+                // Add remove button if it doesn't exist
+                if (container.find('.remove-image-button').length === 0) {
+                    button.after(
+                        '<button type="button" class="button remove-image-button" data-target="' + target + '" style="margin-left: 10px;">' +
+                        '<span class="dashicons dashicons-trash" style="vertical-align: middle;"></span>' +
+                        'Remove Image' +
+                        '</button>'
+                    );
+                }
+            });
+            
+            // Open the media frame
+            mediaUploader.open();
+        });
+        
+        // Remove image functionality
+        $(document).on('click', '.remove-image-button', function(e) {
+            e.preventDefault();
+            var button = $(this);
+            var target = button.data('target');
+            var container = button.closest('.image-upload-container');
+            var urlInput = container.find('input[name="' + target + '"]');
+            var preview = container.find('.image-preview');
+            
+            // Clear the input
+            urlInput.val('');
+            
+            // Update preview to show placeholder
+            preview.html(
+                '<div style="width: 300px; height: 200px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 5px;">' +
+                '<span style="color: #666;">No image selected</span>' +
+                '</div>'
+            );
+            
+            // Hide remove button
+            button.hide();
+        });
+        
+        // Update preview when URL is manually entered
+        $('.image-url-input').on('input', function() {
+            var input = $(this);
+            var container = input.closest('.image-upload-container');
+            var preview = container.find('.image-preview');
+            var removeButton = container.find('.remove-image-button');
+            var imageUrl = input.val().trim();
+            
+            if (imageUrl && imageUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                // Valid image URL
+                preview.html(
+                    '<img src="' + imageUrl + '" alt="Image Preview" style="max-width: 300px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">' +
+                    '<p><small>Current image</small></p>'
+                );
+                removeButton.show();
+            } else if (imageUrl === '') {
+                // Empty URL
+                preview.html(
+                    '<div style="width: 300px; height: 200px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 5px;">' +
+                    '<span style="color: #666;">No image selected</span>' +
+                    '</div>'
+                );
+                removeButton.hide();
+            }
         });
         
         // Save content via AJAX
@@ -514,8 +631,47 @@ function education_helper_homepage_content_form() {
                     <td><textarea name="about_text" class="large-text" rows="5"><?php echo esc_textarea(education_helper_get_content('homepage', 'about_text', 'At Education Helper, we believe that every student deserves access to quality educational support and resources.')); ?></textarea></td>
                 </tr>
                 <tr>
-                    <th><label for="about_image">About Image URL</label></th>
-                    <td><input type="url" name="about_image" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'about_image', '')); ?>" placeholder="https://example.com/image.jpg"></td>
+                    <th><label for="about_image">About Image</label></th>
+                    <td>
+                        <div class="image-upload-container">
+                            <?php 
+                            $current_image = education_helper_get_content('homepage', 'about_image', '');
+                            ?>
+                            
+                            <!-- Image Preview -->
+                            <div class="image-preview" style="margin-bottom: 15px;">
+                                <?php if ($current_image) : ?>
+                                    <img src="<?php echo esc_url($current_image); ?>" alt="About Image Preview" style="max-width: 300px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">
+                                    <p><small>Current image</small></p>
+                                <?php else : ?>
+                                    <div style="width: 300px; height: 200px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 5px;">
+                                        <span style="color: #666;">No image selected</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Upload Button -->
+                            <div style="margin-bottom: 15px;">
+                                <button type="button" class="button upload-image-button" data-target="about_image">
+                                    <span class="dashicons dashicons-upload" style="vertical-align: middle;"></span>
+                                    Choose Image
+                                </button>
+                                <?php if ($current_image) : ?>
+                                    <button type="button" class="button remove-image-button" data-target="about_image" style="margin-left: 10px;">
+                                        <span class="dashicons dashicons-trash" style="vertical-align: middle;"></span>
+                                        Remove Image
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- URL Input (Alternative) -->
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">Or enter image URL:</label>
+                                <input type="url" name="about_image" class="large-text image-url-input" value="<?php echo esc_attr($current_image); ?>" placeholder="https://example.com/image.jpg">
+                                <p class="description">You can either upload an image using the button above, or paste an image URL here.</p>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
             </table>
         </div>
