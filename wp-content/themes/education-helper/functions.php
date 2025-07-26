@@ -711,8 +711,47 @@ function education_helper_about_content_form() {
                     <td><textarea name="story_text" class="large-text" rows="8"><?php echo esc_textarea(education_helper_get_content('about', 'story_text', 'Founded in 2020, Education Helper was born from a simple belief: every student deserves the opportunity to succeed academically, regardless of their background or circumstances.')); ?></textarea></td>
                 </tr>
                 <tr>
-                    <th><label for="story_image">Story Image URL</label></th>
-                    <td><input type="url" name="story_image" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'story_image', '')); ?>" placeholder="https://example.com/story-image.jpg"></td>
+                    <th><label for="story_image">Story Image</label></th>
+                    <td>
+                        <div class="image-upload-container">
+                            <?php 
+                            $story_image = education_helper_get_content('about', 'story_image', '');
+                            ?>
+                            
+                            <!-- Image Preview -->
+                            <div class="image-preview" style="margin-bottom: 15px;">
+                                <?php if ($story_image) : ?>
+                                    <img src="<?php echo esc_url($story_image); ?>" alt="Story Image Preview" style="max-width: 300px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">
+                                    <p><small>Current image</small></p>
+                                <?php else : ?>
+                                    <div style="width: 300px; height: 200px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 5px;">
+                                        <span style="color: #666;">No image selected</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Upload Button -->
+                            <div style="margin-bottom: 15px;">
+                                <button type="button" class="button upload-image-button" data-target="story_image">
+                                    <span class="dashicons dashicons-upload" style="vertical-align: middle;"></span>
+                                    Choose Image
+                                </button>
+                                <?php if ($story_image) : ?>
+                                    <button type="button" class="button remove-image-button" data-target="story_image" style="margin-left: 10px;">
+                                        <span class="dashicons dashicons-trash" style="vertical-align: middle;"></span>
+                                        Remove Image
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- URL Input (Alternative) -->
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">Or enter image URL:</label>
+                                <input type="url" name="story_image" class="large-text image-url-input" value="<?php echo esc_attr($story_image); ?>" placeholder="https://example.com/story-image.jpg">
+                                <p class="description">You can either upload an image using the button above, or paste an image URL here.</p>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
             </table>
         </div>
