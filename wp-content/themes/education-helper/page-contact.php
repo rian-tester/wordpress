@@ -6,8 +6,8 @@ get_header(); ?>
 
 <section class="page-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 3rem 0; text-align: center;">
     <div class="container">
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Contact Us</h1>
-        <p style="font-size: 1.2rem;">Get in touch with our education specialists</p>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;"><?php echo esc_html(education_helper_get_content('contact', 'header_title', 'Contact Us')); ?></h1>
+        <p style="font-size: 1.2rem;"><?php echo esc_html(education_helper_get_content('contact', 'header_subtitle', 'Get in touch with our education specialists')); ?></p>
     </div>
 </section>
 
@@ -27,7 +27,7 @@ get_header(); ?>
                     $subject = sanitize_text_field($_POST['contact_subject']);
                     $message = sanitize_textarea_field($_POST['contact_message']);
                     
-                    $to = get_theme_mod('contact_email', 'info@educationhelper.com');
+                    $to = education_helper_get_content('contact', 'contact_email', 'info@educationhelper.com');
                     $headers = array('Content-Type: text/html; charset=UTF-8', 'From: ' . $email);
                     
                     $email_subject = 'Website Contact: ' . $subject;
@@ -90,7 +90,7 @@ get_header(); ?>
                         <i class="fas fa-phone" style="color: #667eea; font-size: 1.2rem; margin-right: 1rem; width: 20px;"></i>
                         <div>
                             <strong>Phone:</strong><br>
-                            <?php echo esc_html(get_theme_mod('contact_phone', '+1 (555) 123-4567')); ?>
+                            <?php echo esc_html(education_helper_get_content('contact', 'contact_phone', '+1 (555) 123-4567')); ?>
                         </div>
                     </div>
                     
@@ -98,8 +98,8 @@ get_header(); ?>
                         <i class="fas fa-envelope" style="color: #667eea; font-size: 1.2rem; margin-right: 1rem; width: 20px;"></i>
                         <div>
                             <strong>Email:</strong><br>
-                            <a href="mailto:<?php echo esc_attr(get_theme_mod('contact_email', 'info@educationhelper.com')); ?>" style="color: #667eea; text-decoration: none;">
-                                <?php echo esc_html(get_theme_mod('contact_email', 'info@educationhelper.com')); ?>
+                            <a href="mailto:<?php echo esc_attr(education_helper_get_content('contact', 'contact_email', 'info@educationhelper.com')); ?>" style="color: #667eea; text-decoration: none;">
+                                <?php echo esc_html(education_helper_get_content('contact', 'contact_email', 'info@educationhelper.com')); ?>
                             </a>
                         </div>
                     </div>
@@ -108,7 +108,7 @@ get_header(); ?>
                         <i class="fas fa-map-marker-alt" style="color: #667eea; font-size: 1.2rem; margin-right: 1rem; width: 20px; margin-top: 0.2rem;"></i>
                         <div>
                             <strong>Address:</strong><br>
-                            <?php echo nl2br(esc_html(get_theme_mod('contact_address', '123 Education Street, Learning City, LC 12345'))); ?>
+                            <?php echo nl2br(esc_html(education_helper_get_content('contact', 'contact_address', '123 Education Street, Learning City, LC 12345'))); ?>
                         </div>
                     </div>
                 </div>

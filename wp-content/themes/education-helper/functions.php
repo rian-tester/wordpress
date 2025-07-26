@@ -279,12 +279,423 @@ function education_helper_dashboard_widget() {
 add_action('wp_dashboard_setup', 'education_helper_dashboard_widget');
 
 function education_helper_dashboard_widget_content() {
-    echo '<p>Welcome to your Education Helper website! Use the <a href="' . admin_url('customize.php') . '">Customizer</a> to easily modify your site content and colors.</p>';
-    echo '<ul>';
-    echo '<li><a href="' . admin_url('customize.php?autofocus[section]=homepage_settings') . '">Edit Homepage Content</a></li>';
-    echo '<li><a href="' . admin_url('customize.php?autofocus[section]=contact_info') . '">Update Contact Information</a></li>';
-    echo '<li><a href="' . admin_url('customize.php?autofocus[section]=color_settings') . '">Change Theme Colors</a></li>';
-    echo '</ul>';
+    echo '<p>Welcome to the Education Helper theme! Use the <strong>Content Manager</strong> in the admin menu to easily update your website content.</p>';
+    echo '<p><a href="' . admin_url('admin.php?page=content-manager') . '" class="button button-primary">Manage Content</a></p>';
+}
+
+// ==============================================
+// CUSTOM CONTENT MANAGEMENT SYSTEM
+// ==============================================
+
+// Add "Content" menu to admin toolbar
+function education_helper_admin_toolbar($wp_admin_bar) {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    
+    $wp_admin_bar->add_node(array(
+        'id' => 'content_manager',
+        'title' => '<span class="ab-icon dashicons dashicons-edit-page"></span>Content',
+        'href' => admin_url('admin.php?page=content-manager'),
+        'meta' => array(
+            'title' => 'Manage Website Content'
+        )
+    ));
+}
+add_action('admin_bar_menu', 'education_helper_admin_toolbar', 100);
+
+// Add admin menu page for content management
+function education_helper_content_manager_menu() {
+    add_menu_page(
+        'Content Manager',
+        'Content Manager',
+        'manage_options',
+        'content-manager',
+        'education_helper_content_manager_page',
+        'dashicons-edit-page',
+        25
+    );
+}
+add_action('admin_menu', 'education_helper_content_manager_menu');
+
+// Handle AJAX requests for saving content
+function education_helper_save_content() {
+    // Verify nonce for security
+    if (!wp_verify_nonce($_POST['nonce'], 'content_manager_nonce')) {
+        wp_die('Security check failed');
+    }
+    
+    if (!current_user_can('manage_options')) {
+        wp_die('Insufficient permissions');
+    }
+    
+    $section = sanitize_text_field($_POST['section']);
+    $content_data = $_POST['content_data'];
+    
+    // Sanitize all content data
+    $sanitized_data = array();
+    foreach ($content_data as $key => $value) {
+        if (strpos($key, '_image') !== false) {
+            $sanitized_data[$key] = esc_url_raw($value);
+        } else {
+            $sanitized_data[$key] = wp_kses_post($value);
+        }
+    }
+    
+    // Save content to WordPress options
+    update_option("eh_content_{$section}", $sanitized_data);
+    
+    wp_send_json_success('Content saved successfully!');
+}
+add_action('wp_ajax_save_content', 'education_helper_save_content');
+
+// Get content with defaults
+function education_helper_get_content($section, $key, $default = '') {
+    $content = get_option("eh_content_{$section}", array());
+    return isset($content[$key]) ? $content[$key] : $default;
+}
+
+// Content Manager Admin Page
+function education_helper_content_manager_page() {
+    ?>
+    <div class="wrap">
+        <h1><span class="dashicons dashicons-edit-page"></span> Content Manager</h1>
+        <p>Easily manage all text and images on your website. Changes are saved automatically and applied immediately.</p>
+        
+        <div id="content-manager-tabs">
+            <nav class="nav-tab-wrapper">
+                <a href="#homepage" class="nav-tab nav-tab-active">Homepage</a>
+                <a href="#about" class="nav-tab">About</a>
+                <a href="#services" class="nav-tab">Services</a>
+                <a href="#contact" class="nav-tab">Contact</a>
+            </nav>
+            
+            <div id="homepage" class="tab-content active">
+                <?php education_helper_homepage_content_form(); ?>
+            </div>
+            
+            <div id="about" class="tab-content">
+                <?php education_helper_about_content_form(); ?>
+            </div>
+            
+            <div id="services" class="tab-content">
+                <?php education_helper_services_content_form(); ?>
+            </div>
+            
+            <div id="contact" class="tab-content">
+                <?php education_helper_contact_content_form(); ?>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .nav-tab-wrapper { margin-bottom: 20px; }
+        .tab-content { display: none; background: white; padding: 20px; border: 1px solid #ccd0d4; }
+        .tab-content.active { display: block; }
+        .content-section { background: #f9f9f9; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .content-section h3 { margin-top: 0; color: #333; }
+        .form-table th { width: 150px; }
+        .large-text { width: 100%; }
+        .success-message { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .save-button { background: #0073aa; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
+        .save-button:hover { background: #005a87; }
+    </style>
+    
+    <script>
+    jQuery(document).ready(function($) {
+        // Tab switching
+        $('.nav-tab').click(function(e) {
+            e.preventDefault();
+            var target = $(this).attr('href');
+            
+            $('.nav-tab').removeClass('nav-tab-active');
+            $(this).addClass('nav-tab-active');
+            
+            $('.tab-content').removeClass('active');
+            $(target).addClass('active');
+        });
+        
+        // Save content via AJAX
+        $('.save-content').click(function() {
+            var section = $(this).data('section');
+            var form = $('#' + section + '-form');
+            var button = $(this);
+            var originalText = button.text();
+            
+            button.text('Saving...').prop('disabled', true);
+            
+            var formData = {
+                action: 'save_content',
+                section: section,
+                nonce: '<?php echo wp_create_nonce('content_manager_nonce'); ?>',
+                content_data: {}
+            };
+            
+            // Collect form data
+            form.find('input, textarea').each(function() {
+                formData.content_data[$(this).attr('name')] = $(this).val();
+            });
+            
+            $.post(ajaxurl, formData, function(response) {
+                if (response.success) {
+                    form.before('<div class="success-message">' + response.data + '</div>');
+                    setTimeout(function() {
+                        $('.success-message').fadeOut();
+                    }, 3000);
+                } else {
+                    form.before('<div class="error-message">Error saving content. Please try again.</div>');
+                }
+                
+                button.text(originalText).prop('disabled', false);
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
+// Homepage Content Form
+function education_helper_homepage_content_form() {
+    ?>
+    <form id="homepage-form">
+        <div class="content-section">
+            <h3>Hero Section</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="hero_title">Hero Title</label></th>
+                    <td><input type="text" name="hero_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'hero_title', 'Empowering Education for Everyone')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="hero_subtitle">Hero Subtitle</label></th>
+                    <td><textarea name="hero_subtitle" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('homepage', 'hero_subtitle', 'We provide comprehensive educational support and resources to help students achieve their academic goals.')); ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="hero_button_text">Button Text</label></th>
+                    <td><input type="text" name="hero_button_text" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'hero_button_text', 'Get Started Today')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="hero_button_link">Button Link</label></th>
+                    <td><input type="url" name="hero_button_link" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'hero_button_link', '#services')); ?>"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Services Section</h3>
+            <?php for ($i = 1; $i <= 3; $i++) : ?>
+                <h4>Service <?php echo $i; ?></h4>
+                <table class="form-table">
+                    <tr>
+                        <th><label for="service_<?php echo $i; ?>_title">Title</label></th>
+                        <td><input type="text" name="service_<?php echo $i; ?>_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', "service_{$i}_title", "Educational Support")); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="service_<?php echo $i; ?>_description">Description</label></th>
+                        <td><textarea name="service_<?php echo $i; ?>_description" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('homepage', "service_{$i}_description", "Comprehensive support for students at all levels.")); ?></textarea></td>
+                    </tr>
+                    <tr>
+                        <th><label for="service_<?php echo $i; ?>_icon">Icon Class</label></th>
+                        <td><input type="text" name="service_<?php echo $i; ?>_icon" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', "service_{$i}_icon", 'fas fa-graduation-cap')); ?>" placeholder="e.g., fas fa-graduation-cap"></td>
+                    </tr>
+                </table>
+            <?php endfor; ?>
+        </div>
+        
+        <div class="content-section">
+            <h3>About Section (on Homepage)</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="about_title">Section Title</label></th>
+                    <td><input type="text" name="about_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'about_title', 'About Our Mission')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="about_text">About Text</label></th>
+                    <td><textarea name="about_text" class="large-text" rows="5"><?php echo esc_textarea(education_helper_get_content('homepage', 'about_text', 'At Education Helper, we believe that every student deserves access to quality educational support and resources.')); ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="about_image">About Image URL</label></th>
+                    <td><input type="url" name="about_image" class="large-text" value="<?php echo esc_attr(education_helper_get_content('homepage', 'about_image', '')); ?>" placeholder="https://example.com/image.jpg"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <button type="button" class="save-button save-content" data-section="homepage">Save Homepage Content</button>
+    </form>
+    <?php
+}
+
+// About Content Form
+function education_helper_about_content_form() {
+    ?>
+    <form id="about-form">
+        <div class="content-section">
+            <h3>Page Header</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="header_title">Page Title</label></th>
+                    <td><input type="text" name="header_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'header_title', 'About Education Helper')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="header_subtitle">Page Subtitle</label></th>
+                    <td><input type="text" name="header_subtitle" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'header_subtitle', 'Dedicated to empowering students through quality education support')); ?>"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Our Story Section</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="story_title">Section Title</label></th>
+                    <td><input type="text" name="story_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'story_title', 'Our Story')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="story_text">Story Text</label></th>
+                    <td><textarea name="story_text" class="large-text" rows="8"><?php echo esc_textarea(education_helper_get_content('about', 'story_text', 'Founded in 2020, Education Helper was born from a simple belief: every student deserves the opportunity to succeed academically, regardless of their background or circumstances.')); ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="story_image">Story Image URL</label></th>
+                    <td><input type="url" name="story_image" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'story_image', '')); ?>" placeholder="https://example.com/story-image.jpg"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Values Section</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="values_title">Section Title</label></th>
+                    <td><input type="text" name="values_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', 'values_title', 'Our Values')); ?>"></td>
+                </tr>
+                <?php for ($i = 1; $i <= 3; $i++) : ?>
+                    <tr><td colspan="2"><h4>Value <?php echo $i; ?></h4></td></tr>
+                    <tr>
+                        <th><label for="value_<?php echo $i; ?>_title">Value Title</label></th>
+                        <td><input type="text" name="value_<?php echo $i; ?>_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', "value_{$i}_title", "Value {$i}")); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="value_<?php echo $i; ?>_description">Description</label></th>
+                        <td><textarea name="value_<?php echo $i; ?>_description" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('about', "value_{$i}_description", "Description for value {$i}.")); ?></textarea></td>
+                    </tr>
+                    <tr>
+                        <th><label for="value_<?php echo $i; ?>_icon">Icon Class</label></th>
+                        <td><input type="text" name="value_<?php echo $i; ?>_icon" class="large-text" value="<?php echo esc_attr(education_helper_get_content('about', "value_{$i}_icon", 'fas fa-heart')); ?>" placeholder="e.g., fas fa-heart"></td>
+                    </tr>
+                <?php endfor; ?>
+            </table>
+        </div>
+        
+        <button type="button" class="save-button save-content" data-section="about">Save About Content</button>
+    </form>
+    <?php
+}
+
+// Services Content Form  
+function education_helper_services_content_form() {
+    ?>
+    <form id="services-form">
+        <div class="content-section">
+            <h3>Page Header</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="header_title">Page Title</label></th>
+                    <td><input type="text" name="header_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('services', 'header_title', 'Our Services')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="header_subtitle">Page Subtitle</label></th>
+                    <td><input type="text" name="header_subtitle" class="large-text" value="<?php echo esc_attr(education_helper_get_content('services', 'header_subtitle', 'Comprehensive educational support tailored to your needs')); ?>"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Featured Services</h3>
+            <?php for ($i = 1; $i <= 3; $i++) : ?>
+                <h4>Service <?php echo $i; ?></h4>
+                <table class="form-table">
+                    <tr>
+                        <th><label for="featured_service_<?php echo $i; ?>_title">Title</label></th>
+                        <td><input type="text" name="featured_service_<?php echo $i; ?>_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('services', "featured_service_{$i}_title", "Service {$i}")); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="featured_service_<?php echo $i; ?>_description">Description</label></th>
+                        <td><textarea name="featured_service_<?php echo $i; ?>_description" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('services', "featured_service_{$i}_description", "Description for service {$i}.")); ?></textarea></td>
+                    </tr>
+                    <tr>
+                        <th><label for="featured_service_<?php echo $i; ?>_icon">Icon Class</label></th>
+                        <td><input type="text" name="featured_service_<?php echo $i; ?>_icon" class="large-text" value="<?php echo esc_attr(education_helper_get_content('services', "featured_service_{$i}_icon", 'fas fa-chalkboard-teacher')); ?>" placeholder="e.g., fas fa-chalkboard-teacher"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="featured_service_<?php echo $i; ?>_price">Price</label></th>
+                        <td><input type="text" name="featured_service_<?php echo $i; ?>_price" class="large-text" value="<?php echo esc_attr(education_helper_get_content('services', "featured_service_{$i}_price", "Starting at $40/hour")); ?>"></td>
+                    </tr>
+                </table>
+            <?php endfor; ?>
+        </div>
+        
+        <button type="button" class="save-button save-content" data-section="services">Save Services Content</button>
+    </form>
+    <?php
+}
+
+// Contact Content Form
+function education_helper_contact_content_form() {
+    ?>
+    <form id="contact-form">
+        <div class="content-section">
+            <h3>Page Header</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="header_title">Page Title</label></th>
+                    <td><input type="text" name="header_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('contact', 'header_title', 'Contact Us')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="header_subtitle">Page Subtitle</label></th>
+                    <td><input type="text" name="header_subtitle" class="large-text" value="<?php echo esc_attr(education_helper_get_content('contact', 'header_subtitle', 'Get in touch with our education specialists')); ?>"></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Contact Information</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="contact_phone">Phone Number</label></th>
+                    <td><input type="text" name="contact_phone" class="large-text" value="<?php echo esc_attr(education_helper_get_content('contact', 'contact_phone', '+1 (555) 123-4567')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="contact_email">Email Address</label></th>
+                    <td><input type="email" name="contact_email" class="large-text" value="<?php echo esc_attr(education_helper_get_content('contact', 'contact_email', 'info@educationhelper.com')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="contact_address">Address</label></th>
+                    <td><textarea name="contact_address" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('contact', 'contact_address', '123 Education Street, Learning City, LC 12345')); ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="office_hours">Office Hours</label></th>
+                    <td><textarea name="office_hours" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('contact', 'office_hours', 'Monday - Friday: 9:00 AM - 6:00 PM\nSaturday: 10:00 AM - 4:00 PM\nSunday: Closed')); ?></textarea></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h3>Contact Form Section</h3>
+            <table class="form-table">
+                <tr>
+                    <th><label for="form_title">Form Title</label></th>
+                    <td><input type="text" name="form_title" class="large-text" value="<?php echo esc_attr(education_helper_get_content('contact', 'form_title', 'Send us a Message')); ?>"></td>
+                </tr>
+                <tr>
+                    <th><label for="form_description">Form Description</label></th>
+                    <td><textarea name="form_description" class="large-text" rows="3"><?php echo esc_textarea(education_helper_get_content('contact', 'form_description', 'Have a question or need more information? Fill out the form below and we\'ll get back to you as soon as possible.')); ?></textarea></td>
+                </tr>
+            </table>
+        </div>
+        
+        <button type="button" class="save-button save-content" data-section="contact">Save Contact Content</button>
+    </form>
+    <?php
 }
 
 // Include admin helper functions

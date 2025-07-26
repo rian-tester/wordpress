@@ -6,8 +6,8 @@ get_header(); ?>
 
 <section class="page-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 3rem 0; text-align: center;">
     <div class="container">
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">About Education Helper</h1>
-        <p style="font-size: 1.2rem;">Dedicated to empowering students through quality education support</p>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;"><?php echo esc_html(education_helper_get_content('about', 'header_title', 'About Education Helper')); ?></h1>
+        <p style="font-size: 1.2rem;"><?php echo esc_html(education_helper_get_content('about', 'header_subtitle', 'Dedicated to empowering students through quality education support')); ?></p>
     </div>
 </section>
 
