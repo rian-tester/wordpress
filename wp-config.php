@@ -40,14 +40,25 @@ if (!function_exists('getenv_docker')) {
 }
 
 // ** Database settings - You can get this info from your web host ** //
+
+// Parse JawsDB URL for Heroku production
+if (isset($_ENV["JAWSDB_URL"])) {
+	$jawsdb_url = parse_url($_ENV["JAWSDB_URL"]);
+	$jawsdb_host = $jawsdb_url["host"];
+	$jawsdb_username = $jawsdb_url["user"];
+	$jawsdb_password = $jawsdb_url["pass"];
+	$jawsdb_database = substr($jawsdb_url["path"], 1);
+	$jawsdb_port = isset($jawsdb_url["port"]) ? $jawsdb_url["port"] : 3306;
+}
+
 /** The name of the database for WordPress */
-define( 'DB_NAME', getenv_docker('WORDPRESS_DB_NAME', 'wordpress') );
+define( 'DB_NAME', isset($jawsdb_database) ? $jawsdb_database : getenv_docker('WORDPRESS_DB_NAME', 'wordpress') );
 
 /** Database username */
-define( 'DB_USER', getenv_docker('WORDPRESS_DB_USER', 'example username') );
+define( 'DB_USER', isset($jawsdb_username) ? $jawsdb_username : getenv_docker('WORDPRESS_DB_USER', 'example username') );
 
 /** Database password */
-define( 'DB_PASSWORD', getenv_docker('WORDPRESS_DB_PASSWORD', 'example password') );
+define( 'DB_PASSWORD', isset($jawsdb_password) ? $jawsdb_password : getenv_docker('WORDPRESS_DB_PASSWORD', 'example password') );
 
 /**
  * Docker image fallback values above are sourced from the official WordPress installation wizard:
@@ -56,7 +67,7 @@ define( 'DB_PASSWORD', getenv_docker('WORDPRESS_DB_PASSWORD', 'example password'
  */
 
 /** Database hostname */
-define( 'DB_HOST', getenv_docker('WORDPRESS_DB_HOST', 'mysql') );
+define( 'DB_HOST', isset($jawsdb_host) ? $jawsdb_host . ':' . $jawsdb_port : getenv_docker('WORDPRESS_DB_HOST', 'mysql') );
 
 /** Database charset to use in creating database tables. */
 define( 'DB_CHARSET', getenv_docker('WORDPRESS_DB_CHARSET', 'utf8') );
