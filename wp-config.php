@@ -42,8 +42,9 @@ if (!function_exists('getenv_docker')) {
 // ** Database settings - You can get this info from your web host ** //
 
 // Parse JawsDB URL for Heroku production
-if (isset($_ENV["JAWSDB_URL"])) {
-	$jawsdb_url = parse_url($_ENV["JAWSDB_URL"]);
+$jawsdb_url_env = getenv('JAWSDB_URL');
+if ($jawsdb_url_env) {
+	$jawsdb_url = parse_url($jawsdb_url_env);
 	$jawsdb_host = $jawsdb_url["host"];
 	$jawsdb_username = $jawsdb_url["user"];
 	$jawsdb_password = $jawsdb_url["pass"];
@@ -127,10 +128,6 @@ $table_prefix = getenv_docker('WORDPRESS_TABLE_PREFIX', 'wp_');
 define( 'WP_DEBUG', !!getenv_docker('WORDPRESS_DEBUG', '') );
 
 /* Add any custom values between this line and the "stop editing" line. */
-
-// Force correct URLs for Heroku deployment
-define('WP_HOME', 'https://wordpress-test-web-49e692977990.herokuapp.com');
-define('WP_SITEURL', 'https://wordpress-test-web-49e692977990.herokuapp.com');
 
 // If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
 // see also https://wordpress.org/support/article/administration-over-ssl/#using-a-reverse-proxy
